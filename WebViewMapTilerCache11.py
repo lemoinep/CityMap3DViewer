@@ -106,7 +106,7 @@ def get_city_infos(city):
     }
 
 def export_osm_buildings(city="Paris", output="buildings_cache.geojson", d=0.045):
-    url_nom = f"https://nominatim.openstreetmap.org/search?city={city}&format=json"
+    url_nom = f"https://nominatim.openstreetmap.org/search?q={city}&format=json"
     headers = {'User-Agent': 'Mozilla/5.0 (compatible; PyMapTilerWebview/1.0)'}
     resp_nom_raw = requests.get(url_nom, headers=headers)
     if resp_nom_raw.status_code != 200:
