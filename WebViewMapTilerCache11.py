@@ -140,7 +140,7 @@ def export_osm_buildings(city="Paris", output="buildings_cache.geojson", d=0.045
                 if coords and coords[0] != coords[-1]:
                     coords.append(coords[0])
                 props = dict(way.tags)
-                # Liste élargie des propriétés OSM courantes
+
                 info_keys = [
                     'name', 'building', 'building:levels', 'height',
                     'roof:shape', 'roof:material', 'roof:height',
@@ -419,12 +419,15 @@ HTML_TEMPLATE = """
         var buildingFeatures = map.queryRenderedFeatures(e.point, {{
           layers: ['Building 3D', 'osm_buildings_layer']
         }});
+                
         if (typeof currentPopup !== 'undefined' && currentPopup) {{
           currentPopup.remove();
           currentPopup = null;
         }}
         if (buildingFeatures.length > 0) {{
           let props = buildingFeatures[0].properties;
+          
+         
           let coords = e.lngLat;
           let infoHtml = "<h4>" + (props.name || props.amenity || props.building || "Building") + "</h4>";
           let height_val = props.height || props.render_height;
@@ -440,6 +443,20 @@ HTML_TEMPLATE = """
           }} else if (props.amenity) {{
             infoHtml += "<b>Usage:</b> " + props.amenity + "<br/>";
           }}
+
+          //alert(props);
+              
+          if (props["addr:street"]) {{
+              infoHtml += "<b>Adresse:</b> " + props["addr:street"];
+              if (props["addr:housenumber"]) infoHtml += " " + props["addr:housenumber"];
+              if (props["addr:postcode"]) infoHtml += ", " + props["addr:postcode"];
+              if (props["addr:city"]) infoHtml += " " + props["addr:city"];
+              infoHtml += "<br/>";
+           }}    
+              
+              
+              
+              
           currentPopup = new maptilersdk.Popup({{offset: 25}})
             .setLngLat(coords)
             .setHTML(infoHtml)
