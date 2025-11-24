@@ -105,6 +105,7 @@ def get_city_infos(city):
         'population': population, 'temp': temp, 'wind': wind, 'city': city
     }
 
+
 def export_osm_buildings(city="Paris", output="buildings_cache.geojson", d=0.045):
     url_nom = f"https://nominatim.openstreetmap.org/search?q={city}&format=json"
     headers = {'User-Agent': 'Mozilla/5.0 (compatible; PyMapTilerWebview/1.0)'}
@@ -138,7 +139,20 @@ def export_osm_buildings(city="Paris", output="buildings_cache.geojson", d=0.045
                 coords = [(float(node.lon), float(node.lat)) for node in way.nodes]
                 if coords and coords[0] != coords[-1]:
                     coords.append(coords[0])
-                properties_dict = dict(way.tags)
+                props = dict(way.tags)
+                # Liste élargie des propriétés OSM courantes
+                info_keys = [
+                    'name', 'building', 'building:levels', 'height',
+                    'roof:shape', 'roof:material', 'roof:height',
+                    'addr:street', 'addr:housenumber', 'addr:postcode', 'addr:city',
+                    'start_date', 'amenity', 'shop', 'office', 'industrial',
+                    'website', 'brand', 'condition', 'surface', 'source'
+                ]
+                properties_dict = {k: props.get(k, None) for k in info_keys if k in props}
+
+                for k, v in props.items():
+                    if k not in properties_dict:
+                        properties_dict[k] = v
                 geojson["features"].append({
                     "type": "Feature",
                     "geometry": {"type": "Polygon", "coordinates": [coords]},
@@ -151,6 +165,7 @@ def export_osm_buildings(city="Paris", output="buildings_cache.geojson", d=0.045
         json.dump(geojson, f)
     print(f"Buildings saved to {output} ({count} buildings)")
     return lat, lon
+
 
 # --- HTML TEMPLATE ---
 HTML_TEMPLATE = """
