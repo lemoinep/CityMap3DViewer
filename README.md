@@ -28,16 +28,16 @@ Additional flags allow city selection, OSM data extraction, and cache management
 
 ## *Screenshot of my application*
 
-<img src="images/001.png" width="50%" />
-<img src="images/002.png" width="50%" />
-<img src="images/003.png" width="50%" />
-<img src="images/004.png" width="50%" />
-<img src="images/005.png" width="50%" />
-<img src="images/006.png" width="50%" />
-<img src="images/007.png" width="50%" />
-<img src="images/008.png" width="50%" />
-<img src="images/009.png" width="50%" />
-<img src="images/010.png" width="50%" />
+<img src="images/001.jpg" width="50%" />
+<img src="images/002.jpg" width="50%" />
+<img src="images/003.jpg" width="50%" />
+<img src="images/004.jpg" width="50%" />
+<img src="images/005.jpg" width="50%" />
+<img src="images/006.jpg" width="50%" />
+<img src="images/007.jpg" width="50%" />
+<img src="images/008.jpg" width="50%" />
+<img src="images/009.jpg" width="50%" />
+<img src="images/010.jpg" width="50%" />
 
 
 ## I will add other tools in the future...
