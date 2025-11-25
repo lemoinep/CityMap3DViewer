@@ -7,7 +7,8 @@ import socket
 import os
 import sys
 from geopy.geocoders import Nominatim
-
+import requests
+import json
 
 try:
     import overpy
@@ -106,65 +107,86 @@ def get_city_infos(city):
     }
 
 
-def export_osm_buildings(city="Paris", output="buildings_cache.geojson", d=0.045):
+def export_osm_buildings(api_user_adgent, city="Paris", output="buildings_cache.geojson", d=0.045):
     url_nom = f"https://nominatim.openstreetmap.org/search?q={city}&format=json"
-    headers = {'User-Agent': 'Mozilla/5.0 (compatible; PyMapTilerWebview/1.0)'}
+    headers = {'User-Agent': f'ICX Tools OSM Extraction ({api_user_adgent})'} 
+    
     resp_nom_raw = requests.get(url_nom, headers=headers)
     if resp_nom_raw.status_code != 200:
         raise Exception(f"Nominatim error {resp_nom_raw.status_code}: {resp_nom_raw.text[:200]}")
     resp_nom = resp_nom_raw.json()
     if not resp_nom:
         raise Exception(f"City {city} not found or no data found!")
+
     lat, lon = float(resp_nom[0]["lat"]), float(resp_nom[0]["lon"])
-    if not OVERPY_AVAILABLE:
-        geojson = {"type": "FeatureCollection", "features": []}
-        count = 0
-    else:
-        bbox = f"{lat-d},{lon-d},{lat+d},{lon+d}"
-        query = f"""
-        [out:json][timeout:60];
-        (
-          way["building"]({bbox});
-          relation["building"]({bbox});
-        );
-        out body;
-        >;
-        out skel qt;
-        """
+    bbox = f"{lat-d},{lon-d},{lat+d},{lon+d}"
+    query = f"""
+    [out:json][timeout:90];
+    (
+      way["building"]({bbox});
+    );
+    out body;
+    >;
+    out skel qt;
+    """
+
+    overpass_urls = [
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass.kumi.systems/api/interpreter",
+        "https://z.overpass-api.de/api/interpreter"
+    ]
+    resp_ov = None
+    for overpass_url in overpass_urls:
         try:
-            api = overpy.Overpass()
-            result = api.query(query)
-            geojson = {"type": "FeatureCollection", "features": []}
-            for way in result.ways:
-                coords = [(float(node.lon), float(node.lat)) for node in way.nodes]
-                if coords and coords[0] != coords[-1]:
-                    coords.append(coords[0])
-                props = dict(way.tags)
-
-                info_keys = [
-                    'name', 'building', 'building:levels', 'height',
-                    'roof:shape', 'roof:material', 'roof:height',
-                    'addr:street', 'addr:housenumber', 'addr:postcode', 'addr:city',
-                    'start_date', 'amenity', 'shop', 'office', 'industrial',
-                    'website', 'brand', 'condition', 'surface', 'source'
-                ]
-                properties_dict = {k: props.get(k, None) for k in info_keys if k in props}
-
-                for k, v in props.items():
-                    if k not in properties_dict:
-                        properties_dict[k] = v
-                geojson["features"].append({
-                    "type": "Feature",
-                    "geometry": {"type": "Polygon", "coordinates": [coords]},
-                    "properties": properties_dict
-                })
-            count = len(geojson['features'])
+            resp_ov = requests.post(overpass_url, data={"data": query}, headers=headers, timeout=120)
+            if resp_ov.status_code == 200:
+                break
+            else:
+                print(f"Instance {overpass_url} code {resp_ov.status_code}")
         except Exception as ex:
-            raise Exception(f"Overpass error: {ex}")
+            print(f"Erreur Overpass sur {overpass_url} : {ex}")  
+    if not resp_ov or resp_ov.status_code != 200:
+        raise Exception(f"Overpass error {resp_ov.status_code if resp_ov else '-'}: {resp_ov.text[:200] if resp_ov else 'No response'}")
+
+    data = resp_ov.json()
+
+    nodes = {str(n["id"]): (float(n["lon"]), float(n["lat"])) for n in data.get("elements", []) if n["type"] == "node"}
+
+    geojson = {"type": "FeatureCollection", "features": []}
+    count = 0
+    for elem in data.get("elements", []):
+        if elem["type"] == "way" and "nodes" in elem:
+            coords = [nodes.get(str(nid)) for nid in elem["nodes"] if str(nid) in nodes]
+            if len(coords) < 3:
+                continue
+            if coords[0] != coords[-1]:
+                coords.append(coords[0])
+            props = elem.get('tags', {})
+
+            info_keys = [
+                'name', 'building', 'building:levels', 'height',
+                'roof:shape', 'roof:material', 'roof:height',
+                'addr:street', 'addr:housenumber', 'addr:postcode', 'addr:city',
+                'start_date', 'amenity', 'shop', 'office', 'industrial',
+                'website', 'brand', 'condition', 'surface', 'source'
+            ]
+            properties_dict = {k: props.get(k, None) for k in info_keys if k in props}
+            for k, v in props.items():
+                if k not in properties_dict:
+                    properties_dict[k] = v
+
+            geojson["features"].append({
+                "type": "Feature",
+                "geometry": {"type": "Polygon", "coordinates": [coords]},
+                "properties": properties_dict
+            })
+            count += 1
+
     with open(output, "w", encoding="utf-8") as f:
         json.dump(geojson, f)
     print(f"Buildings saved to {output} ({count} buildings)")
     return lat, lon
+
 
 
 # --- HTML TEMPLATE ---
@@ -489,12 +511,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--Path', type=str, default='.', help='Path.')
     parser.add_argument('--API_KEY', type=str, default='', help='API_KEY.')
+    parser.add_argument('--API_USER_AGENT', type=str, default='', help='API_USER-AGENT.')
     parser.add_argument('--City', type=str, default="New York", help='City Name.')
     parser.add_argument('--AskCity', action='store_true', help='Tkinter dialog to enter city name')
     parser.add_argument('--ForceOSM', action='store_true', help='Force extraction/save of OSM cache at each launch')
     args = parser.parse_args()
 
     MAPTILER_API_KEY = args.API_KEY
+    
+    API_USER_AGENT = args.API_USER_AGENT
 
     city = args.City
     
@@ -523,7 +548,7 @@ if __name__ == '__main__':
         if OVERPY_AVAILABLE:
             print("Extracting OSM buildings cache…")
             try:
-                export_osm_buildings(city=city, output=geojson_cache_path, d=d_box)
+                export_osm_buildings(API_USER_AGENT,city=city, output=geojson_cache_path, d=d_box)
             except Exception as e:
                 print(f"OSM extraction failed: {e}")
         else:
