@@ -25,7 +25,18 @@ Additional flags allow city selection, OSM data extraction, and cache management
 - Geographic and weather data exploration
 - Quick city info dashboards
 
- 
+
+## *Screenshot of my Applications*
+
+<img src="images/001.png" width="25%" />
+<img src="images/002.png" width="25%" />
+<img src="images/003.png" width="25%" />
+<img src="images/004.png" width="25%" />
+<img src="images/005.png" width="25%" />
+<img src="images/006.png" width="25%" />
+<img src="images/007.png" width="25%" />
+
+
 ## I will add other tools in the future...
 
 
